@@ -1,0 +1,10 @@
+requests
+tweepy
+pandas
+textblob
+wordcloud
+matplotlib
+nltk
+python-telegram-bot
+beautifulsoup4
+python-dotenv
