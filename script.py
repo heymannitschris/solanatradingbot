@@ -19,6 +19,7 @@ load_dotenv()
 # Telegram Bot credentials
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+TOXI_SOLANA_BOT_ID = "@toxi_solana_bot"  # Bot username (ensure the bot's username is correct)
 
 # RugCheck API credentials
 RUGCHECK_API_KEY = os.getenv('RUGCHECK_API_KEY')
@@ -140,13 +141,51 @@ def check_tweet_scout_score(twitter_handle):
         return score > 20
     return False
 
-# Send valid token info to Telegram Bot
-def send_to_telegram_bot(token_data):
-    bot = Bot(token=TELEGRAM_BOT_TOKEN)
-    message = f"New Token Alert!\nName: {token_data['name']}\nSymbol: {token_data['symbol']}\nMint Address: {token_data['mint_address']}\n"
-    if token_data['social_media_links']:
-        message += f"Social Links: {', '.join(token_data['social_media_links'])}"
-    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+# Send Buy Signal to Toxi Solana Bot
+def send_buy_signal_to_toxi_bot(mint_address):
+    # Compose the message to send to the bot
+    buy_command = f"/buy {mint_address}"
+    sol_amount = "1"  # Replace with the Sol amount you want to buy
+    # You may also need to add a price check or other logic here
+    
+    # Construct the message to send to the bot
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TOXI_SOLANA_BOT_ID,
+        "text": buy_command
+    }
+    # Send the Buy command to the Toxi Solana Bot
+    response = requests.post(url, data=payload)
+    
+    # If the bot responds with success, we can follow up by sending the Sol amount
+    if response.status_code == 200:
+        print(f"Buy signal for {mint_address} sent successfully!")
+        # Send the Sol amount next (replace this with actual logic for inputting the Sol amount)
+        sol_amount_message = f"Amount: {sol_amount} SOL"
+        payload_sol = {
+            "chat_id": TOXI_SOLANA_BOT_ID,
+            "text": sol_amount_message
+        }
+        response = requests.post(url, data=payload_sol)
+        if response.status_code == 200:
+            print(f"Sent {sol_amount} SOL for purchase.")
+        else:
+            print(f"Failed to send Sol amount. Status code: {response.status_code}")
+    else:
+        print(f"Failed to send buy signal. Status code: {response.status_code}")
+
+# Send message to your Telegram bot
+def send_message_to_telegram_bot(message):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": message
+    }
+    response = requests.post(url, data=payload)
+    if response.status_code == 200:
+        print(f"Message sent to your Telegram bot: {message}")
+    else:
+        print(f"Failed to send message. Status code: {response.status_code}")
 
 # Main analysis workflow
 def analyze_twitter_list(list_id):
@@ -189,17 +228,4 @@ def main():
                 # Check contract security with RugCheck
                 is_good, top_holder_percentage = check_contract_security(token['mint_address'])
                 
-                # Check if TweetScout score is over 20 and the contract is secure
-                if is_good and check_tweet_scout_score(token['social_media_links'][0]) and top_holder_percentage < 10:
-                    send_to_telegram_bot(token)
-                    print(f"Sent token {token['name']} to Telegram bot.")
-                else:
-                    print(f"Token {token['name']} does not meet criteria.")
-    else:
-        print("Failed to retrieve the board page.")
-
-# Run the main function periodically
-if __name__ == '__main__':
-    while True:
-        main()
-        time.sleep(1800)  # Run every 30 minutes
+                # Check if Tweet
