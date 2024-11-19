@@ -1,17 +1,25 @@
+import os
 import requests
-import pandas as pd
+import base64
+import time
 import tweepy
+from dotenv import load_dotenv
 from textblob import TextBlob
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from collections import Counter
-from telegram import Bot
-from dotenv import load_dotenv
-import os
-from bs4 import BeautifulSoup
+from solana.keypair import Keypair
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 import time
+from bs4 import BeautifulSoup
+import pandas as pd
 
 # Load environment variables from .env file
 load_dotenv()
@@ -19,7 +27,7 @@ load_dotenv()
 # Telegram Bot credentials
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-TOXI_SOLANA_BOT_ID = "@toxi_solana_bot"  # Bot username (ensure the bot's username is correct)
+TOXI_SOLANA_BOT_ID = os.getenv('TOXI_SOLANA_BOT_ID')  # Bot username (ensure the bot's username is correct)
 
 # RugCheck API credentials
 RUGCHECK_API_KEY = os.getenv('RUGCHECK_API_KEY')
@@ -35,10 +43,21 @@ API_SECRET_KEY = os.getenv('TWITTER_API_SECRET_KEY')
 ACCESS_TOKEN = os.getenv('TWITTER_ACCESS_TOKEN')
 ACCESS_TOKEN_SECRET = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
 
+# Solana private key (base64 encoded) from .env file
+SOLANA_PRIVATE_KEY_BASE64 = os.getenv('SOLANA_PRIVATE_KEY')
+
 # Setup Twitter API access
 auth = tweepy.OAuthHandler(API_KEY, API_SECRET_KEY)
 auth.set_access_token(ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
 api = tweepy.API(auth)
+
+# Initialize Solana keypair from the private key
+if SOLANA_PRIVATE_KEY_BASE64:
+    solana_private_key = base64.b64decode(SOLANA_PRIVATE_KEY_BASE64)
+    keypair = Keypair.from_secret_key(solana_private_key)
+    print("Solana keypair loaded successfully!")
+else:
+    print("Solana private key not found in .env file!")
 
 # Define the list ID for the Twitter list you want to analyze
 LIST_ID = '1544277446526222336'
@@ -85,14 +104,38 @@ def create_wordcloud(tokens):
     plt.axis('off')
     plt.show()
 
-# Fetch and parse the Pump.fun board page
-def fetch_board_page():
-    url = 'https://pump.fun/board'
-    response = requests.get(url)
-    if response.status_code == 200:
-        return response.text
-    else:
-        print(f"Failed to retrieve the page. Status code: {response.status_code}")
+# Function to fetch the board page with Selenium (and click "I'm ready to pump")
+def fetch_board_page_with_selenium():
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+    driver.get("https://pump.fun/")
+
+    try:
+        # Wait for the "I'm ready to pump" button and click it
+        print("Waiting for 'I'm ready to pump' button to appear...")
+        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'I\'m ready to pump')]"))).click()
+        print("Clicked the 'I'm ready to pump' button successfully.")
+
+        # Wait for the sort button (to sort by creation time)
+        print("Waiting for 'sort: featured' button to appear...")
+        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'sort: featured')]"))).click()
+        print("Clicked the 'sort: featured' button successfully.")
+
+        # Wait for the creation time sort option and click it
+        print("Waiting for 'sort: creation time' button to appear...")
+        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'sort: creation time')]"))).click()
+        print("Clicked the 'sort: creation time' button successfully.")
+
+        # Wait for the page to load after sorting
+        print("Waiting for page to load...")
+        time.sleep(5)  # Adjust time as necessary
+
+        # Fetch the page source
+        page_source = driver.page_source
+        return page_source
+
+    except Exception as e:
+        print(f"Error occurred while fetching the board page: {e}")
+        driver.quit()
         return None
 
 # Function to parse the board page and extract token details
@@ -119,15 +162,42 @@ def parse_board_page(html):
             social_links = [link.get('href') for link in token_div.find_all('a', {'class': 'social-link'})]
             token['social_media_links'] = social_links
             tokens.append(token)
+    
+    # Save tokens to CSV
+    pd.DataFrame(tokens).to_csv("tokens.csv", index=False)
+    
     return tokens
+
+# Check contract security using RugCheck API with Solana signed message
+def authenticate_with_rugcheck(message):
+    signature = keypair.sign(message.encode('utf-8'))  # Encoding the message to bytes before signing
+    signed_message = base64.b64encode(signature).decode('utf-8')  # Base64 encoding the signed message
+    
+    headers = {
+        'Authorization': f'Bearer {RUGCHECK_API_KEY}',
+        'Content-Type': 'application/json'
+    }
+    payload = {
+        'message': message,
+        'signature': signed_message
+    }
+    
+    # Send the request to RugCheck API for authentication
+    response = requests.post(f'{RUGCHECK_API_URL}auth/login/solana', headers=headers, json=payload)
+    
+    if response.status_code == 200:
+        return response.json()  # Returns the authenticated response
+    else:
+        print(f"Failed to authenticate with RugCheck: {response.status_code}")
+        return None
 
 # Check contract security using RugCheck API
 def check_contract_security(mint_address):
-    headers = {'Authorization': f'Bearer {RUGCHECK_API_KEY}'}
-    response = requests.get(f'{RUGCHECK_API_URL}check/{mint_address}', headers=headers)
-    if response.status_code == 200:
-        data = response.json()
-        return data.get('status') == 'good', data.get('top_holder_percentage', 0)
+    message = f"Check security for {mint_address}"
+    response_data = authenticate_with_rugcheck(message)
+    
+    if response_data:
+        return response_data.get('status') == 'good', response_data.get('top_holder_percentage', 0)
     return False, 0
 
 # Check if the TweetScout score is over 20
@@ -135,6 +205,7 @@ def check_tweet_scout_score(twitter_handle):
     headers = {'Authorization': f'Bearer {TWEETSCOUT_API_KEY}'}
     params = {'handle': twitter_handle}
     response = requests.get(f'{TWEETSCOUT_API_URL}check-audience-quality', headers=headers, params=params)
+    
     if response.status_code == 200:
         data = response.json()
         score = data.get('score', 0)
@@ -143,24 +214,17 @@ def check_tweet_scout_score(twitter_handle):
 
 # Send Buy Signal to Toxi Solana Bot
 def send_buy_signal_to_toxi_bot(mint_address):
-    # Compose the message to send to the bot
     buy_command = f"/buy {mint_address}"
     sol_amount = "1"  # Replace with the Sol amount you want to buy
-    # You may also need to add a price check or other logic here
-    
-    # Construct the message to send to the bot
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TOXI_SOLANA_BOT_ID,
         "text": buy_command
     }
-    # Send the Buy command to the Toxi Solana Bot
     response = requests.post(url, data=payload)
     
-    # If the bot responds with success, we can follow up by sending the Sol amount
     if response.status_code == 200:
         print(f"Buy signal for {mint_address} sent successfully!")
-        # Send the Sol amount next (replace this with actual logic for inputting the Sol amount)
         sol_amount_message = f"Amount: {sol_amount} SOL"
         payload_sol = {
             "chat_id": TOXI_SOLANA_BOT_ID,
@@ -208,24 +272,37 @@ def analyze_twitter_list(list_id):
     avg_sentiment = sum(sentiment_scores) / len(sentiment_scores)
     print(f"Average Sentiment: {avg_sentiment}")
 
+    # Save tweets and sentiment analysis to CSV
+    tweet_data = pd.DataFrame({
+        'Tweet': tweets,
+        'Sentiment': sentiment_scores
+    })
+    tweet_data.to_csv("tweets_analysis.csv", index=False)
+
     # Create and display the word cloud
     print("Generating word cloud...")
     create_wordcloud(all_tokens)
+
+    # Save word cloud tokens to CSV
+    wordcloud_data = pd.DataFrame({'Tokens': all_tokens})
+    wordcloud_data.to_csv("wordcloud_tokens.csv", index=False)
 
     # Return the sentiment for use in decision-making
     return avg_sentiment
 
 # Main function that integrates everything
 def main():
-    html = fetch_board_page()
+    # Fetch the Pump.fun board page
+    html = fetch_board_page_with_selenium()
     if html:
+        # Parse the board page for tokens
         tokens = parse_board_page(html)
         for token in tokens:
             if token['mint_address'] and token['social_media_links']:
-                # Perform analysis on token's social media narrative
+                # Analyze token's social media narrative
                 avg_sentiment = analyze_twitter_list(LIST_ID)
                 
-                # Check contract security with RugCheck
+                # Check the contract security with RugCheck
                 is_good, top_holder_percentage = check_contract_security(token['mint_address'])
                 
                 # Check if TweetScout score is over 20 and the contract is secure
@@ -238,6 +315,15 @@ def main():
                     send_message_to_telegram_bot(message)
 
                     print(f"Sent Buy signal for {token['name']} to Toxi Solana Bot.")
+                    
+                    # Save buy signal details to CSV
+                    buy_signal_data = pd.DataFrame([{
+                        'Token Name': token['name'],
+                        'Mint Address': token['mint_address'],
+                        'Symbol': token['symbol'],
+                        'Sentiment Score': avg_sentiment
+                    }])
+                    buy_signal_data.to_csv("buy_signals.csv", mode='a', header=not os.path.exists("buy_signals.csv"), index=False)
                 else:
                     print(f"Token {token['name']} does not meet criteria.")
     else:
