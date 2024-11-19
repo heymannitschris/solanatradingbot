@@ -1,106 +1,92 @@
 # Solana Trading Bot
 
-This project is a Python-based trading bot for interacting with the Solana blockchain, specifically designed to fetch data, interact with Telegram bots, and scrape data from Telegram Mini Apps. It uses the Telegram Bot API, Selenium, and Solana Web3 to automate actions and provide real-time insights.
+This project is a Python-based bot designed to automate the process of analyzing tokens listed on Pump.fun and trading signals from Twitter. The bot scrapes the latest tokens from Pump.fun, analyzes the sentiment of tweets from a specified Twitter list, and sends trade signals to a Telegram bot.
 
 Features
 
-	•	Telegram Bot Interaction: Send and receive messages using the Telegram Bot API.
-	•	Data Extraction: Scrape data from Telegram Mini Apps (Web-based bots) using Selenium.
-	•	Solana Blockchain Interaction: Connect to the Solana blockchain and fetch wallet details.
-	•	Twitter Sentiment Analysis: Fetch and analyze tweets from specific Twitter lists.
-	•	Automated Trading: The bot sends buy signals based on analysis from multiple sources (Twitter sentiment, RugCheck, etc.).
-	•	Data Logging: Save the results (buy signals, sentiment analysis, and token details) to CSV files for record-keeping.
+	•	Token Scraping: The bot scrapes the latest tokens from Pump.fun and fetches details like token names, symbols, mint addresses, and social media links.
+	•	Twitter Sentiment Analysis: The bot fetches tweets from a predefined Twitter list and performs sentiment analysis using TextBlob.
+	•	Contract Security Check: The bot verifies the contract security of tokens using the RugCheck API.
+	•	Telegram Integration: The bot interacts with Telegram bots to send notifications, including buy signals and token details.
+	•	Data Logging: Saves token data, sentiment analysis results, and trading actions to CSV files.
 
 Installation
 
-To get started with the bot, follow the instructions below:
+Follow these steps to install and run the bot:
 
-1. Clone the repository
+# 1. Clone the Repository
 git clone https://github.com/yourusername/solanatradingbot.git
 cd solanatradingbot
 
-2. Create and activate a virtual environment
-If you’re using venv for Python environment management:
+# 2. Create and Activate a Virtual Environment
 python3 -m venv venv
 source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
 
-3. Install required dependencies
+# 3. Install Dependencies
 pip install -r requirements.txt
 
-Make sure you have all the necessary dependencies installed:
-	•	requests: For HTTP requests to APIs.
-	•	selenium: For scraping and automating interactions with Telegram Mini Apps.
+The required dependencies are:
+	•	requests: For making HTTP requests.
+	•	selenium: For scraping data from the Pump.fun website.
 	•	tweepy: For interacting with the Twitter API.
-	•	textblob: For sentiment analysis.
-	•	wordcloud: To generate word clouds from Twitter data.
-	•	matplotlib: For plotting sentiment analysis results.
-	•	nltk: For text processing and tokenization.
-	•	pandas: To handle data and save results in CSV files.
-	•	webdriver-manager: For managing the WebDriver (used in Selenium).
-	•	python-dotenv: To manage environment variables securely.
+	•	textblob: For sentiment analysis on tweets.
+	•	wordcloud: For generating word clouds.
+	•	nltk: For natural language processing (tokenization and stop word removal).
+	•	matplotlib: For visualizing the sentiment analysis.
+	•	pandas: For handling CSV file exports.
+	•	webdriver-manager: For managing ChromeDriver for Selenium.
+	•	python-dotenv: For managing environment variables securely.
 
-4. Set up environment variables
+# 4. Set Up Environment Variables
+Create a .env file in the project directory and include your API keys and Telegram bot credentials:
 
-Create a .env file in the project directory and add your necessary credentials:
+.env file
 
-# .env file
-
-# Telegram Bot
+Telegram Bot credentials
 TELEGRAM_BOT_TOKEN=your-telegram-bot-token
 TELEGRAM_CHAT_ID=your-chat-id
 TOXI_SOLANA_BOT_ID=your-bot-id
 
-# Solana
-SOLANA_PRIVATE_KEY=your-private-key-in-base64
-
-# RugCheck
+RugCheck API credentials
 RUGCHECK_API_KEY=your-rugcheck-api-key
 
-# TweetScout
+TweetScout API credentials
 TWEETSCOUT_API_KEY=your-tweetscout-api-key
 
-# Twitter API
+Twitter API credentials
 TWITTER_API_KEY=your-twitter-api-key
 TWITTER_API_SECRET_KEY=your-twitter-api-secret-key
 TWITTER_ACCESS_TOKEN=your-twitter-access-token
 TWITTER_ACCESS_TOKEN_SECRET=your-twitter-access-token-secret
 
-5. Start the bot
+# 5. Run the Bot
+Run the bot by executing the following command:
 
-Run the script to start the bot:
 python script.py
 
-Usage
+How It Works
 
-Once the bot is running, it will:
-	1.	Fetch the list of Solana tokens from the Pump.fun board.
-	2.	Interact with the Telegram bot to fetch and process data.
-	3.	Analyze the sentiment of tweets from the defined Twitter list.
-	4.	Check the contract security using the RugCheck API.
-	5.	If certain conditions are met (e.g., good contract security, high sentiment score), the bot will send a buy signal to the Toxi Solana bot.
+	1.	Pump.fun Token Scraping: The bot scrapes tokens listed on Pump.fun, fetching details like token name, symbol, and social media links.
+	2.	Twitter Sentiment Analysis: It fetches tweets from a Twitter list and performs sentiment analysis on them.
+	3.	Contract Security: The bot verifies the contract security of tokens using RugCheck to ensure that they are safe to buy.
+	4.	Buy Signal: If a token passes the sentiment analysis and contract security check, the bot sends a buy signal to a Telegram bot.
 
-Features in Detail
+Data Files
 
-	•	Twitter Sentiment Analysis: The bot fetches tweets from a specific Twitter list and analyzes the sentiment using TextBlob. Positive sentiment leads to the bot sending a buy signal.
-	•	Pump.fun Token Scraping: The bot scrapes the latest tokens from Pump.fun, checks their contract security via RugCheck API, and monitors sentiment using Twitter analysis.
-	•	Telegram Integration: The bot sends updates and buy signals via a Telegram Bot to notify you of any trading opportunities.
-
-Files
-
-	•	script.py: The main script that runs the bot and handles all the interactions and analysis.
-	•	requirements.txt: A file that lists all the Python dependencies.
-	•	.env: The environment variables file containing API keys and tokens.
-	•	tokens.csv: CSV file that logs the details of the tokens fetched from Pump.fun.
-	•	buy_signals.csv: CSV file that logs the details of the buy signals sent by the bot.
-	•	tweets_analysis.csv: CSV file containing the tweets and their sentiment analysis.
+	•	tokens.csv: Contains the list of tokens fetched from Pump.fun.
+	•	buy_signals.csv: Logs the buy signals sent by the bot.
+	•	tweets_analysis.csv: Contains the tweets analyzed for sentiment.
+	•	wordcloud_tokens.csv: Contains the tokens used to generate the word cloud.
 
 Troubleshooting
 
-If you encounter issues, make sure the following:
-	•	You have the correct versions of Chrome and ChromeDriver installed and they match.
-	•	The Telegram bot has proper permissions and the Telegram chat ID is correctly set.
-	•	You have the necessary API keys for RugCheck, TweetScout, and Twitter API.
+Common Issues:
+
+	1.	Bot Can’t Click the ‘I’m Ready to Pump’ Button:
+	•	Ensure that the XPath for the button is correctly matched and that the page loads fully before the script interacts with it.
+	2.	WebDriver Version Mismatch:
+	•	Make sure ChromeDriver matches the installed version of Google Chrome.
 
 Contributing
 
-If you’d like to contribute to this project, feel free to submit a pull request or open an issue. All contributions are welcome!
+Feel free to fork this repository and submit a pull request to improve the bot! Contributions are always welcome.
