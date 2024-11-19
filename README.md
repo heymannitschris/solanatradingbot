@@ -1,4 +1,4 @@
-Solana Trading Bot
+# Solana Trading Bot
 
 This project is a Python-based trading bot for interacting with the Solana blockchain, specifically designed to fetch data, interact with Telegram bots, and scrape data from Telegram Mini Apps. It uses the Telegram Bot API, Selenium, and Solana Web3 to automate actions and provide real-time insights.
 
