@@ -40,20 +40,20 @@ The required dependencies are:
 # 4. Set Up Environment Variables
 Create a .env file in the project directory and include your API keys and Telegram bot credentials:
 
-.env file
+# .env file
 
-Telegram Bot credentials
+# Telegram Bot credentials
 TELEGRAM_BOT_TOKEN=your-telegram-bot-token
 TELEGRAM_CHAT_ID=your-chat-id
 TOXI_SOLANA_BOT_ID=your-bot-id
 
-RugCheck API credentials
+# RugCheck API credentials
 RUGCHECK_API_KEY=your-rugcheck-api-key
 
-TweetScout API credentials
+# TweetScout API credentials
 TWEETSCOUT_API_KEY=your-tweetscout-api-key
 
-Twitter API credentials
+# Twitter API credentials
 TWITTER_API_KEY=your-twitter-api-key
 TWITTER_API_SECRET_KEY=your-twitter-api-secret-key
 TWITTER_ACCESS_TOKEN=your-twitter-access-token
