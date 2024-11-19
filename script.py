@@ -228,4 +228,23 @@ def main():
                 # Check contract security with RugCheck
                 is_good, top_holder_percentage = check_contract_security(token['mint_address'])
                 
-                # Check if Tweet
+                # Check if TweetScout score is over 20 and the contract is secure
+                if is_good and check_tweet_scout_score(token['social_media_links'][0]) and top_holder_percentage < 10:
+                    # Send Buy signal to Toxi Solana Bot
+                    send_buy_signal_to_toxi_bot(token['mint_address'])
+
+                    # Send a message to your own Telegram bot to notify you
+                    message = f"New Token Buy Signal Sent!\nToken Name: {token['name']}\nMint Address: {token['mint_address']}\nSymbol: {token['symbol']}"
+                    send_message_to_telegram_bot(message)
+
+                    print(f"Sent Buy signal for {token['name']} to Toxi Solana Bot.")
+                else:
+                    print(f"Token {token['name']} does not meet criteria.")
+    else:
+        print("Failed to retrieve the board page.")
+
+# Run the main function periodically
+if __name__ == '__main__':
+    while True:
+        main()
+        time.sleep(1800)  # Run every 30 minutes
